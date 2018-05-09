@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	   xmlns:context="http://www.springframework.org/schema/context"
+	   xmlns:aop="http://www.springframework.org/schema/aop"
+	   xmlns:mvc="http://www.springframework.org/schema/mvc"
+	   xmlns:tx="http://www.springframework.org/schema/tx"
+	   xsi:schemaLocation="
+	        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+	        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.2.xsd
+			http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-4.2.xsd
+			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.2.xsd
+			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.2.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.2.xsd">
+
+
+	<mvc:annotation-driven />
+	<context:component-scan base-package="org.tjjhjw" />
+
+	<!-- For mail settings and future properties files -->
+	<bean id="defaultPropertyConfig"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:dbconfig.properties</value>
+			</list>
+		</property>
+	</bean>
+	<bean name="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+			<!-- 数据连接信息 -->
+			<property name="jdbcUrl" value="${jdbc.connection.url}"></property>
+			<property name="driverClass" value="${jdbc.connection.driver.class}"></property>
+			<property name="user" value="${jdbc.connection.username}"></property>
+			<property name="password" value="${jdbc.connection.password}"></property>
+			<!-- 其他配置 -->
+			<!--初始化时获取三个连接，取值应在minPoolSize与maxPoolSize之间。Default: 3 -->
+			<property name="initialPoolSize" value="3"></property>
+			<!--连接池中保留的最小连接数。Default: 3 -->
+			<property name="minPoolSize" value="3"></property>
+			<!--连接池中保留的最大连接数。Default: 10 -->
+			<property name="maxPoolSize" value="5"></property>
+			<!--当连接池中的连接耗尽的时候c3p0一次同时获取的连接数。Default: 3 -->
+			<property name="acquireIncrement" value="3"></property>
+			<!-- 控制数据源内加载的PreparedStatements数量。如果maxStatements与maxStatementsPerConnection均为0，则缓存被关闭。Default: 0 -->
+			<property name="maxStatements" value="8"></property>
+			<!--maxStatementsPerConnection定义了连接池内单个连接所拥有的最大缓存statements数。Default: 0 -->
+			<property name="maxStatementsPerConnection" value="5"></property>
+			<!--最大空闲时间,1800秒内未使用则连接被丢弃。若为0则永不丢弃。Default: 0 -->
+			<property name="maxIdleTime" value="1800"></property>
+
+	</bean>
+
+	<!-- JNDI DataSource for J2EE environments -->
+	<!--<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		destroy-method="close">
+		<property name="driverClassName" value="${jdbc.connection.driver.class}" />
+		<property name="url" value="${jdbc.connection.url}" />
+		<property name="username" value="${jdbc.connection.username}" />
+		<property name="password" value="${jdbc.connection.password}" />
+		<property name="initialSize" value="2"/>
+		<property name="maxIdle" value="3"/>
+		<property name="minIdle" value="1"/>
+  		<property name="maxActive" value="2" />
+        <property name="maxWait" value="1000" />&lt;!&ndash;超时等待时间1s  &ndash;&gt;
+        <property name="timeBetweenEvictionRunsMillis" value="120000" />
+        <property name="minEvictableIdleTimeMillis" value="360000" />
+        <property name="removeAbandoned" value="true" />
+        <property name="removeAbandonedTimeout" value="60" />
+        <property name="poolPreparedStatements" value="true" />
+        <property name="defaultAutoCommit" value="true" />
+        <property name="testOnBorrow" value="true" />
+        <property name="testWhileIdle" value="true" />
+	</bean>-->
+	<bean id="sessionFactory"
+		  class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="packagesToScan">
+			<list>
+				<value>org.tjjhjw</value>
+			</list>
+		</property>
+		<property name="hibernateProperties">
+			<props>
+				<prop key="hibernate.hbm2ddl.auto">create</prop>
+				<prop key="hibernate.dialect">org.hibernate.dialect.MySQL5Dialect</prop>
+				<prop key="hibernate.show_sql">true</prop>
+				<prop key="hibernate.format_sql">true</prop>
+				<prop key="current_session_context_class">thread</prop>
+			</props>
+		</property>
+	</bean>
+	<!--     利用AOP方式给方法加上事务管理 -->
+	<bean id="txManager" class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+		<property name="sessionFactory" ref="sessionFactory"/>
+	</bean>
+
+	<!--     具体定义哪些方法需要加上事务管理 -->
+	<tx:advice id="txAdvice" transaction-manager="txManager">
+		<tx:attributes>
+			<tx:method name="get*" read-only="true" />
+			<tx:method name="*" />
+		</tx:attributes>
+	</tx:advice>
+	<aop:config>
+		<aop:pointcut id="bizMethods" expression="execution(* com.test.biz.*.*(..))" />
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="bizMethods" />
+	</aop:config>
+
+<!--
+<mvc:interceptors>
+            <mvc:interceptor>
+                <mvc:mapping path="/**"/>
+                <bean id="loginInterceptor" class="org.tjjhjw.interceptor.LoginInterceptor"/>
+            </mvc:interceptor>
+        </mvc:interceptors>-->
+
+
+</beans>
